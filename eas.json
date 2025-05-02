@@ -1,0 +1,31 @@
+{
+  "cli": {
+    "version": ">= 7.2.0",
+    "appVersionSource" : "remote"
+  },
+  "build": {
+    "galaxy": {
+      "env": {
+        "EXPO_PUBLIC_ORIENT_USERNAME": "simsse",
+        "EXPO_PUBLIC_ORIENT_PASSWORD": "simsse",
+        "EXPO_PUBLIC_NETWORK_PATH": "192.168.43.176"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    },
+    "production": {
+      "env": {
+        "EXPO_PUBLIC_ORIENT_USERNAME": "simsse",
+        "EXPO_PUBLIC_ORIENT_PASSWORD": "simsse",
+        "EXPO_PUBLIC_NETWORK_PATH": "130.66.220.210"
+      },
+      "android": {
+        "buildType": "apk"
+      }
+    }
+  }
+}
+
+  
+    
