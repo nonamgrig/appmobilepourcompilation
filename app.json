@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "SIMCHUApp",
-    "slug": "simsse",
+    "slug": "simsse-mobile",
     "version": "1.2.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
@@ -61,9 +61,9 @@
     },
     "extra": {
       "eas": {
-        "projectId": "b946820a-1a3f-41ad-a217-348c0d905790"
+        "projectId": "26213ff2-dcdf-4d4a-afbe-b8fa8637ba51"
       }
     },
-    "owner": "smithjohn"
+    "owner": "nonamgrig"
   }
 }

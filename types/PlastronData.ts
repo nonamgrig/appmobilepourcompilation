@@ -32,4 +32,5 @@ export type ScenarioData = {
     documentId: string, // Hidden UID
     titre: string, 
     description : string,
+    dateId : string, 
 };

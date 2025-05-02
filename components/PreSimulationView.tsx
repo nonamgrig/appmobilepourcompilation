@@ -174,10 +174,14 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       
       //on récupère les données de la liste des scénarios 
       let scenarioDocId: string; 
+      //scenario contient le documentId
+      const day = new Date(); 
+      const dateId = day.toLocaleDateString()+ "-" + scenario; 
       const selectedScenario = scenarios.find(
-        item => item.documentId.trim() == scenario
+        item => item.dateId.trim() == dateId 
       );
-  
+      console.log("selected scenario", selectedScenario)
+        
       if (!scenario) {
         throw "Emply scenario data";
       }
@@ -198,11 +202,12 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       } catch (err) {
         if(err == 'exists'){ // Le scénario est déjà dans le Retex
           console.log('erreur scenario exist'); 
-          //récupérer le documentId du scénario existant 
-          scenarioDocId = await getScenarioId(simulationId as string);
-          
-          //créer le lien entre le scénario et le plastron          
-          await connectExercicePlastron(scenarioDocId, createdPlastronId); 
+          //récupérer le dateId du scénario existant 
+          if (selectedScenario) {
+            scenarioDocId = await getScenarioId(selectedScenario.dateId as string);
+            //créer le lien entre le scénario et le plastron          
+            await connectExercicePlastron(scenarioDocId, createdPlastronId); 
+          } else throw err;
           
         } else throw err;
       }
