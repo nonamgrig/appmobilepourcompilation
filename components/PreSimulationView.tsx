@@ -174,11 +174,9 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       
       //on récupère les données de la liste des scénarios 
       let scenarioDocId: string; 
-      //scenario contient le documentId
-      const day = new Date(); 
-      const dateId = day.toLocaleDateString()+ "-" + scenario; 
+    
       const selectedScenario = scenarios.find(
-        item => item.dateId.trim() == dateId 
+        item => item.documentId.trim() == scenario
       );
       console.log("selected scenario", selectedScenario)
         
@@ -204,7 +202,10 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
           console.log('erreur scenario exist'); 
           //récupérer le dateId du scénario existant 
           if (selectedScenario) {
-            scenarioDocId = await getScenarioId(selectedScenario.dateId as string);
+            //scenario contient le documentId
+            const day = new Date(); 
+            const dateId = day.toLocaleDateString()+ "-" + scenario; 
+            scenarioDocId = await getScenarioId(dateId);
             //créer le lien entre le scénario et le plastron          
             await connectExercicePlastron(scenarioDocId, createdPlastronId); 
           } else throw err;

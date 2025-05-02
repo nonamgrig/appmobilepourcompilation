@@ -423,7 +423,7 @@ const useStrapi = () => {
     try{
       //const url = `${apiURLEditor.current}/query/simsse/sql/SELECT groups as id, groups.EU as eu, groups.psy as psy, groups.UA as ua, groups.implique as implique, groups.UR as ur, groups.scene as scene, groups.x as x, groups.y as y, groups.t0 as t, plastrons AS plastronsId, profiles.age AS age, plastrons.out('aModele').@rid as modelId, plastrons.out('aModele').description as modelDescription,plastrons.out('aModele').title as modelTitle, plastrons.out('aModele').template as template, plastrons.out('aModele').examen as examen, plastrons.out('aModele').triage as triage FROM (MATCH {class: scenario, as: scenario, where: (@rid='${scenarioID}')}.out('seComposeDe'){as: groups}.out('seComposeDe'){as: plastrons}.out('aProfil'){as: profiles} RETURN groups,scenario,plastrons,profiles)`;
       const url = `${apiURLRetex.current}/api/exercices?
-        &filters[scenariodateId][$eq]=${scenariodateId}`;
+        &filters[dateId][$eq]=${scenariodateId}`;
       
       const res = await axios.get(url, {
         timeout: 10000,
