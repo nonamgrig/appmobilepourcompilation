@@ -53,6 +53,9 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
   const {setSetUp} = useContext(SetUpContext)
   const [selectedPlastronData, setSelectedPlastronData] = useState<PlastronData>();
 
+  //plastronchargé
+  const [downloadPlastron, setDownloadPlastron] = useState<boolean>(false);
+
   const [recover, setRecover] = useState<boolean>(false);
 
   // Scenarios
@@ -273,6 +276,40 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
 
       setModelPlastron(model);
    
+
+      // console.log("Starting simulation");
+      // setPlastronData(plastronDataPre);
+
+      // props.forwards();
+      // setSetUp(true);
+      
+
+      setDownloadPlastron(true); 
+      console.log("Chargé ", downloadPlastron); 
+    
+    } catch (err) {
+      if(err != 'idle'){
+        console.error("Could not load : "+ err);
+        
+        if(typeof err == "string") props.displayNotif(err, "error");
+      }
+    }
+    setIsPending(false);
+
+  };
+
+  const startSimulation = async (
+    behaviour:string = 'ask',
+    plastronDataPre = selectedPlastronData,
+    scenario = simulationId, 
+  ) => {
+    if(!plastronDataPre){
+      throw "Emply plastron data";
+    }
+    
+    setIsPending(true);
+    try{ 
+
       console.log("Starting simulation");
       setPlastronData(plastronDataPre);
 
@@ -282,7 +319,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     
     } catch (err) {
       if(err != 'idle'){
-        console.error("Could not load and start : "+ err);
+        console.error("Could not load : "+ err);
         
         if(typeof err == "string") props.displayNotif(err, "error");
       }
@@ -467,13 +504,28 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
                     <Text>{selectedPlastronData.modele.description_cachee || "Rien à afficher"}</Text>
                   </View>
                 </AnimatedView>
-                <AnimatedButton 
-                animateIn
-                startValues={{scale: 1, trY: -40}}
-                style={[styles.button, {marginBottom: 100}]} 
-                onPress={() => setUpPlastron()}>
-                  <Text style={elementStyles.buttonText}>Lancer</Text>         
+                {!downloadPlastron ? (
+                  <AnimatedButton 
+                  animateIn
+                  startValues={{scale: 1, trY: -40}}
+                  style={[styles.button, {marginBottom: 100}]} 
+                  onPress={() => setUpPlastron()}>
+                    <Text style={elementStyles.buttonText}>Charger</Text>         
+                  </AnimatedButton>
+                ) : (
+                  <AnimatedButton
+                  animateIn
+                  startValues={{ scale: 1, trY: -40 }}
+                  style={[styles.button, { marginBottom: 100, 
+                                            borderWidth: 2, 
+                                            borderColor: 'red', // contour rouge
+                                            backgroundColor: 'white' // optionnel : fond transparent
+                                              }]}
+                  onPress={() => startSimulation()}
+                >
+                  <Text style={[elementStyles.buttonText, { color: 'red' }]}>Lancer</Text>
                 </AnimatedButton>
+                )}
               </>}
             </ScrollView>
           </VStack>
