@@ -25,6 +25,7 @@ export type PlastronData = {
         titre: string,
         description?: string,
         description_cachee?: string,
+        examen?: string, 
     }
 };
 

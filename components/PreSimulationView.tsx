@@ -248,7 +248,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       const seen = new Set();
 
       const actionsPlastron = model
-        .filter(item => item.event && item.event.type === "action")
+        .filter(item => item.event && item.event.type == "action")
         .map(item => ({
           documentId: item.event.action?.documentId,
           nom: item.event.action?.nom

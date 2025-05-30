@@ -93,6 +93,7 @@ const useStrapi = () => {
       &populate[modele][fields][3]=description_cachee
       &populate[modele][fields][4]=description
       &populate[modele][fields][5]=titre
+      &populate[modele][fields][6]=examen
       &populate[profil][fields][0]=documentId
       &populate[profil][fields][1]=age
       &populate[profil][populate][variablephysio_profils][fields][0]=valeur_defaut
@@ -124,6 +125,7 @@ const useStrapi = () => {
 
       restData.modele.description = decodeURIComponent(restData.modele.description);
       restData.modele.description_cachee = decodeURIComponent(restData.modele.description_cachee);
+      restData.modele.examen = decodeURIComponent(restData.modele.examen);
 
       return {
         profil:{
@@ -355,6 +357,7 @@ const useStrapi = () => {
             description : plastron.modele.description, 
             attendues : plastron.modele.examen, 
             descriptionPlastron : plastron.modele.description_cachee, 
+            examen : plastron.modele.examen, 
             triage : plastron.modele.triage, 
             titre : plastron.modele.titre,
           },
