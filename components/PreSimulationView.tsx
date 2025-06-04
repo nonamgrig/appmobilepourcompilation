@@ -39,15 +39,18 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     getScenarioId,
     connectExercicePlastron,
     putActionPlastron, 
-    getPlatronData
+    getPlatronData, 
+    pushVariablesRetex, 
+    putLancePlastron, 
+    pushExamenRetex
   } = useStrapi();
 
 
-  const {setPlastronData} = useContext(PlastronDataContext);
+  const {plastronData, setPlastronData} = useContext(PlastronDataContext);
+  const {plastronPhysEvolutif, setPlastronPhysEvolutif} = useContext(PlastronPhysEvolutifContext);
   const {setModelPlastron} = useContext(ModelPlastronContext);
   const {actionHistory, setActionHistory} = useContext(ActionHistoryContext);
   const {setActions} = useContext(ActionsContext);
-  const {setPlastronPhysEvolutif} = useContext(PlastronPhysEvolutifContext);
 
   const [plastronList, setPlastronList] = useState<PlastronData[]>([]);
   const {setSetUp} = useContext(SetUpContext)
@@ -55,6 +58,8 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
 
   //plastronchargé
   const [downloadPlastron, setDownloadPlastron] = useState<boolean>(false);
+  const [createdPlastronId, setCreatedPlastronId] = useState<string>(); 
+  const [shouldStartSimulation, setShouldStartSimulation] = useState(false);
 
   const [recover, setRecover] = useState<boolean>(false);
 
@@ -156,7 +161,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       try{
         //récupérer l"id du plastron créé
         createdPlastronId = await postPlastronRetex(plastronDataPre);
-        
+        setCreatedPlastronId(createdPlastronId)        
            
       } catch (err) {
         if(err == 'exists'){ // Le plastron est déjà dans le Retex
@@ -167,6 +172,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
             await deletePreviousPlastronData(plastronDataPre.documentId)
           
             createdPlastronId = await postPlastronRetex(plastronDataPre)
+            setCreatedPlastronId(createdPlastronId)    
           } else if (behaviour == 'loadBack'){
             // Todo : Switch to localstorage to get previous physvars as server might have been offline
             physVars = await getStorage("lastPhysVars");
@@ -300,34 +306,55 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
 
   const startSimulation = async (
     behaviour:string = 'ask',
-    plastronDataPre = selectedPlastronData,
-    scenario = simulationId, 
+    plastronDataPre = selectedPlastronData, 
+    plastronId = createdPlastronId
   ) => {
     if(!plastronDataPre){
       throw "Emply plastron data";
     }
     
     setIsPending(true);
-    try{ 
+    setPlastronData(plastronDataPre);
+    setShouldStartSimulation(true);
+  }; 
 
+  useEffect(() => {
+  const runAfterSet = async () => {
+    if (!shouldStartSimulation || !plastronData) return;
+
+    try {
       console.log("Starting simulation");
-      setPlastronData(plastronDataPre);
+      console.log("plastron à lancer", plastronData.documentId);
+
+      await putLancePlastron(createdPlastronId as string).catch(err => {
+        console.log("Could not sync, postponed");
+      });
+
+      await Promise.all([
+        pushExamenRetex("Start", plastronData.documentId, ['1000']),
+        pushVariablesRetex()
+      ]).catch(err => {
+        console.log("Could not sync, postponed");
+      });
 
       props.forwards();
       setSetUp(true);
-    
-    
     } catch (err) {
-      if(err != 'idle'){
-        console.error("Could not load : "+ err);
-        
-        if(typeof err == "string") props.displayNotif(err, "error");
+      if (err !== 'idle') {
+        console.error("Could not load: " + err);
+        if (typeof err === "string") props.displayNotif(err, "error");
       }
+    } finally {
+      setIsPending(false);
+      setShouldStartSimulation(false); // reset
     }
-    setIsPending(false);
-
   };
 
+  runAfterSet();
+}, [shouldStartSimulation, plastronData]);
+
+
+   
   
   return (
     <>
@@ -501,7 +528,10 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
                     <Text style={{marginBottom: 20}}>{selectedPlastronData.modele.description || "Rien à afficher"}</Text>
                     
                     <Text style={baseStyles.h3}>Description cachée</Text>
-                    <Text>{selectedPlastronData.modele.description_cachee || "Rien à afficher"}</Text>
+                    <Text style={{marginBottom: 20}}>{selectedPlastronData.modele.description_cachee || "Rien à afficher"}</Text>
+
+                    <Text style={baseStyles.h3}>Attendus Formation</Text>
+                    <Text>{selectedPlastronData.modele.examen || "Rien à afficher"}</Text>
                   </View>
                 </AnimatedView>
                 {!downloadPlastron ? (
@@ -607,5 +637,6 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     }
 
   });
+
 
   

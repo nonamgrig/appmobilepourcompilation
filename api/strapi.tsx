@@ -197,6 +197,7 @@ const useStrapi = () => {
     plastronId:string|null = null, 
     intervenantIds:Array<string>|null = null,
   ) => {
+    console.log("plastronId", plastronId)
     const day = new Date();
     
     let addActionsHistory:ExamenRetexItem[] = [];
@@ -352,14 +353,16 @@ const useStrapi = () => {
         { 
           data: {
             plastronID: plastron.documentId,
-            status : "Debut",
+            status : "Chargé",
             dateId : dateId, 
             description : plastron.modele.description, 
             attendues : plastron.modele.examen, 
             descriptionPlastron : plastron.modele.description_cachee, 
             examen : plastron.modele.examen, 
             triage : plastron.modele.triage, 
-            titre : plastron.modele.titre,
+            titre : plastron.modele.titre + " - " + plastron.index,
+            //TO DO à ajouter en changeant la base de données 
+            //index : plastron.index
           },
           filters: {
             plastronID: {
@@ -486,6 +489,27 @@ const useStrapi = () => {
     }
   }
 
+  //pour modifier le statut du plastron 
+  const putLancePlastron = async (plastronId : string) => {
+    try{
+      const put = await axios.put(
+        `${apiURLRetex.current}/api/plastrons/${plastronId}`,
+        { 
+          data: {
+            status : "Lancé"
+          },
+        }
+      );
+    } catch(error: any){
+      if(error.response.data.error.message == "This attribute must be unique")
+        throw 'exists';
+      else {
+        console.error("erreur dans connect", error.response.data);
+        throw error
+      };
+    }
+  }
+
 
   // TODO : Remmove if CHU rejects bioevent fucntionnality
   /*Here we save the list of all the bioevents from the CHU DB */
@@ -551,6 +575,7 @@ const useStrapi = () => {
     putActionPlastron,
     getPlatronData,
     deletePreviousPlastronData,
+    putLancePlastron
   };
 
 };

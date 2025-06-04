@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native';
-const mainColor = "#2A78CD";
+export const mainColor = "#2A78CD";
 const lightMainColor = "#4F95E0";
 const lightColor = "#C9E0EE";
 export const baseStyles = StyleSheet.create({

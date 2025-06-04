@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useContext } from 'react';
 import {IntervenantViewProps} from '../types/IntervenantViewProps';
-import { StyleSheet, Text, Pressable,View, Image, BackHandler } from 'react-native';
+import { StyleSheet, Text, Pressable,View, Image, BackHandler, TextInput } from 'react-native';
 import { CloseIcon, Box, Flex, HStack, Button, ScrollView} from 'native-base';
 import { Ionicons } from '@expo/vector-icons'; 
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -17,7 +17,7 @@ import { ActionsContext } from '../providers/actionsContextProvider';
 import AnimatedView from './animated/View';
 import AnimatedButton from './animated/Button';
 import PhysVarButton from './animated/PhysVarButton';
-import { baseStyles, elementStyles } from '../styles/globalstyles';
+import { baseStyles, elementStyles, mainColor } from '../styles/globalstyles';
 
 // Types
 import { IntervenantItem } from '../types/IntervenantsList';
@@ -90,6 +90,9 @@ export default function IntervenantView(props:IntervenantViewProps) {
       // UI measurements
     const [bottomButtonsHeight, setBottomButtonsHeight] = useState<number>(0);
     const [headerHeightTracker, setHeaderHeightTracker] = useState<number>(0);
+
+    //Bypass NFC
+    const [manualId, setManualId] = useState('');
 
     // Keep track of ids of Timeouts to clear them when needed (when the wait is extended for instance), indexed by bloc Names
     // Reference to survive rerenders
@@ -508,32 +511,65 @@ export default function IntervenantView(props:IntervenantViewProps) {
           </AnimatedModal.Body>
         </AnimatedModal.Content>
       </AnimatedModal>
-      <AnimatedModal visibility={authOpened} onRequestClose={() => {
-        setAuthOpened(false);
-        }}>
-        <AnimatedModal.Content>
-          <AnimatedModal.Header closeButton>
-            <Text style={[baseStyles.h2, {fontSize: 25}]}>Scanne ton bracelet</Text>
-          </AnimatedModal.Header>
-          <AnimatedModal.Body style={styles.authContainer}>
-            
-            <Ionicons name="watch-outline" color={baseStyles.lightMainColor.color} size={50}></Ionicons>
-            <Text style={[baseStyles.h3, {fontSize: 18}]}>Scan en cours...</Text>
+      <AnimatedModal visibility={authOpened} onRequestClose={() => setAuthOpened(false)}>
+        <View style={{ flexDirection: 'column', alignItems: 'center' }}>
+          
+          {/* Boîte 1 : Scan NFC */}
+          <AnimatedModal.Content style={{  width: '100%', marginBottom: 20 }}>
+            <AnimatedModal.Header closeButton>
+              <Text style={[baseStyles.h2, { fontSize: 25, marginRight : 10}]}>Scanne ton bracelet</Text>
+            </AnimatedModal.Header>
+            <AnimatedModal.Body style={styles.authContainer}>
+              <Ionicons name="watch-outline" color={baseStyles.lightMainColor.color} size={50} />
+              <Text style={[baseStyles.h3, { fontSize: 18 }]}>Scan en cours...</Text>
+            </AnimatedModal.Body>
+          </AnimatedModal.Content>
 
-            {/* BUILD : Comment */}
-            {/* <Text>{'\n'}{'\n'}{'\n'}{'\n'} ----- DEV ------ </Text>
-            <Pressable
-            style={styles.devButton}
-            onPress={()=>{addIntervenant('{"id":"1234","nom":"Garry"}')}}><Text>Add a med</Text></Pressable>
-            <Pressable
-            style={styles.devButton}
-            onPress={()=>{addIntervenant('{"id":"2234","nom":"Garry"}')}}><Text>Add a paramed</Text></Pressable>
-            <Pressable
-            style={styles.devButton}
-            onPress={()=>{addIntervenant('{"id":"3234","nom":"Garry"}')}}><Text>Add a secouriste</Text></Pressable> */}
+          <Text style={{
+            color: 'white',
+            fontSize: 25,
+            fontWeight: 'bold', 
+            marginVertical: 10,
+            textAlign: 'center',
+            backgroundColor: 'transparent',
+          }}>
+            OU
+          </Text>
 
-          </AnimatedModal.Body>
-        </AnimatedModal.Content>
+          {/* Boîte 2 : Entrée manuelle */}
+          <AnimatedModal.Content style={{  width: '100%', marginTop : 20}}>
+            <AnimatedModal.Header closeButton>
+              <Text style={[baseStyles.h2, { fontSize: 25 }]}>Entre ton ID</Text>
+            </AnimatedModal.Header>
+            <AnimatedModal.Body style={styles.authContainer}>
+              <TextInput
+                placeholder="3000"
+                style={{
+                  borderWidth: 1,
+                  borderColor: '#ccc',
+                  padding: 10,
+                  marginVertical: 10,
+                  borderRadius: 5, 
+                  width: 150,
+                }}
+                keyboardType="numeric"
+                onChangeText={(text) => setManualId(text)}
+                value={manualId}
+              />
+              <Pressable
+                style={styles.devButton}
+                onPress={() => {
+                  if (manualId.trim() !== '') {
+                    addIntervenant(JSON.stringify({ id: manualId, nom: '' }));
+                  }
+                }}
+              >
+                <Text style={{ color: 'white' }}>Ajouter l'ID</Text>
+              </Pressable>
+            </AnimatedModal.Body>
+          </AnimatedModal.Content>
+          
+        </View>
       </AnimatedModal>
       <AnimatedModal visibility={showingPlastronInfo} onRequestClose={() => setShowingPlastronInfo(false)}>
         <AnimatedModal.Content>
@@ -554,7 +590,6 @@ export default function IntervenantView(props:IntervenantViewProps) {
           setShowActions(false);
           setReactTimeout(() => setCategorySelected(""), 200);
         }}
-       
       >
         <AnimatedModal.Content>
           <AnimatedModal.Header closeButton>
@@ -839,10 +874,12 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   devButton:{
-    backgroundColor: "skyblue",
+    backgroundColor: mainColor,
     padding:10,
     width: "80%",
     margin:5,
+    borderRadius: 8,      
+    alignItems: "center",  
   },
   scantext:{
     ...baseStyles.appFont
