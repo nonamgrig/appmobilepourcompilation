@@ -28,7 +28,7 @@ export default function AdminView({ orientationHorizontal, ...props }: AdminView
   const [locked, setLocked] = useState<boolean>(true);
   const [codeInput, setCodeInput] = useState<number>();
 
-  const { pushExamenRetex, pushVariablesRetex } = useStrapi();
+  const { pushExamenRetex, pushVariablesRetex, putStatusPlastronId } = useStrapi();
 
   const {plastronData} = useContext(PlastronDataContext);
   const {intervenantsList} = useContext(IntervenantsListContext);
@@ -51,7 +51,8 @@ export default function AdminView({ orientationHorizontal, ...props }: AdminView
           plastronData?.documentId,
           [intervenantsList[0].intervenantID]
         ),
-        pushVariablesRetex()
+        pushVariablesRetex(), 
+        putStatusPlastronId(plastronData?.documentId as string, "Fin")
       ]);
 
       await resetApp();
@@ -164,7 +165,10 @@ export default function AdminView({ orientationHorizontal, ...props }: AdminView
           <Text style={{marginBottom: 20}}>{plastronData?.modele.description || "Rien à afficher"}</Text>
           
           <Text style={baseStyles.h3}>Description cachée</Text>
-          <Text>{plastronData?.modele.description_cachee || "Rien à afficher"}</Text>
+          <Text style={{marginBottom: 20}}>{plastronData?.modele.description_cachee || "Rien à afficher"}</Text>
+          
+          <Text style={baseStyles.h3}>Attendus Formation</Text>
+          <Text>{plastronData?.modele.examen || "Rien à afficher"}</Text>
                           
         </View>
         <Text style={[baseStyles.h3,styles.historyTitle]}>Historique des actions</Text>

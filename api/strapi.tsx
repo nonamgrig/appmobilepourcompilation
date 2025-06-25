@@ -9,7 +9,7 @@ import { ServerContext } from "../providers/serverContextProvider";
 import { PlastronPhysEvolutifContext } from "../providers/plastronPhysEvolutifContextProvider";
 import { PlastronDataContext } from "../providers/plastronContextProvider";
 import { ActionHistoryContext } from "../providers/actionHistoryContextProvider";
-import { Action } from "../types/Actions";
+import { Action, ActionPlastron } from "../types/Actions";
 import { setStorage } from "../tools/Storage";
 import { useUpdateRef } from "../tools/AppHooks";
 
@@ -163,11 +163,27 @@ const useStrapi = () => {
     const res = await axios.get(url, {
       timeout: 10000,
     });
-    
     return res.data.data as PlastronModelItem[];
-    
-      
   }
+
+  //Access actions linked to a specific plastron
+  const getActionsPlastron = async (modelID: string) => {
+
+    console.log("getActionsPlastron");
+
+    const url = `${apiURLEditor.current}/api/events?
+      fields[0]=documentId
+      &fields[1]=type      
+      &populate[action][fields][0]=documentId
+      &populate[action][fields][1]=nom
+      &filters[modele][documentId][$eq]=${modelID}`;
+    const res = await axios.get(url, {
+      timeout: 10000,
+    });
+    return res.data.data as ActionPlastron[];
+  }
+
+
   {/*Here we access all the possibles actions over a plastron*/} 
   const getAllActions = async () => {
       console.log("getAllActions");
@@ -344,7 +360,7 @@ const useStrapi = () => {
 
   // Pour enregistrer un plastron dans la base de données Retex sans les actions modélisées
   const postPlastronRetex = async (plastron : any ) => {
-    console.log("plastron to register", plastron);
+    // console.log("plastron to register", plastron);
     const day = new Date(); 
     const dateId = day.toLocaleDateString()+ "-" + plastron.documentId; 
     try{
@@ -437,7 +453,7 @@ const useStrapi = () => {
 
       // Récupérer l'ID du document créé
       const createdId = res.data.data[0].id;
-      console.log("scenario", res.data.data[0].id); 
+      // console.log("scenario", res.data.data[0].id); 
       return createdId;
       
     } catch (error: any) {
@@ -490,13 +506,13 @@ const useStrapi = () => {
   }
 
   //pour modifier le statut du plastron 
-  const putLancePlastron = async (plastronId : string) => {
+  const putStatusPlastron = async (plastronId : string, status : string) => {
     try{
       const put = await axios.put(
         `${apiURLRetex.current}/api/plastrons/${plastronId}`,
         { 
           data: {
-            status : "Lancé"
+            status : status
           },
         }
       );
@@ -508,7 +524,50 @@ const useStrapi = () => {
         throw error
       };
     }
+    
   }
+
+  const putStatusPlastronId = async (plastronId: string, status: string) => {
+    try {
+
+      const dateDuJour = new Date();
+      const formatJJMMAAAA = `${dateDuJour.getDate().toString().padStart(2, '0')}/${(dateDuJour.getMonth() + 1).toString().padStart(2, '0')}/${dateDuJour.getFullYear()}`;
+
+      const dateId = formatJJMMAAAA + "-" + plastronId
+      // Étape 1 : Récupérer l'enregistrement avec ce plastronID
+      const getRes = await axios.get(
+        `${apiURLRetex.current}/api/plastrons?filters[dateId][$eq]=${dateId}`
+      );
+
+      const found = getRes.data?.data?.[0]; // On prend le premier trouvé (plastronID est censé être unique)
+
+      if (!found) {
+        throw new Error(`Aucun plastron trouvé avec le dateID : ${dateId}`);
+      }
+
+      const strapiId = found.id;
+
+      // Étape 2 : Modifier le status avec l'id récupéré
+      const put = await axios.put(
+        `${apiURLRetex.current}/api/plastrons/${strapiId}`,
+        {
+          data: {
+            status: status,
+          },
+        }
+      );
+
+      return put.data; // retourne les données mises à jour si besoin
+
+    } catch (error: any) {
+      if (error.response?.data?.error?.message == "This attribute must be unique") {
+        throw 'exists';
+      } else {
+        console.error("Erreur dans putStatusPlastronName:", error.response?.data || error);
+        throw error;
+      }
+    }
+  };
 
 
   // TODO : Remmove if CHU rejects bioevent fucntionnality
@@ -567,6 +626,7 @@ const useStrapi = () => {
     fetchScenarios, 
     getAllActions,
     getModelById,
+    getActionsPlastron,
     getPlastronsByGroup,
     postPlastronRetex,
     postExerciceRetex,
@@ -575,7 +635,8 @@ const useStrapi = () => {
     putActionPlastron,
     getPlatronData,
     deletePreviousPlastronData,
-    putLancePlastron
+    putStatusPlastron, 
+    putStatusPlastronId
   };
 
 };

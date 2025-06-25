@@ -33,6 +33,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     getAllActions,
     deletePreviousPlastronData,
     getModelById,
+    getActionsPlastron,
     getPlastronsByGroup,
     postPlastronRetex,
     postExerciceRetex,
@@ -41,7 +42,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     putActionPlastron, 
     getPlatronData, 
     pushVariablesRetex, 
-    putLancePlastron, 
+    putStatusPlastron, 
     pushExamenRetex
   } = useStrapi();
 
@@ -244,8 +245,9 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       await setStorage('lastPlastronId', plastronDataPre.documentId);
       setPlastronPhysEvolutif(physVars);
      
-      const [actions, model] = await Promise.all([
+      const [actions, actionsPlastron, model] = await Promise.all([
         getAllActions(),
+        getActionsPlastron(plastronDataPre.modele.documentId),
         getModelById(plastronDataPre.modele.documentId),
       ]);
 
@@ -253,11 +255,11 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
 
       const seen = new Set();
 
-      const actionsPlastron = model
-        .filter(item => item.event && item.event.type == "action")
+      const actionsPlastronModif = actionsPlastron
+        .filter(item => item.type == 'action' && item.action) // filtre les actions valides
         .map(item => ({
-          documentId: item.event.action?.documentId,
-          nom: item.event.action?.nom
+          documentId: item.action.documentId,
+          nom: item.action.nom
         }))
         .filter(item => {
           if (!item.documentId || seen.has(item.documentId)) {
@@ -268,15 +270,13 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
         });
 
 
-      const resultat = actionsPlastron.map(item => {
-        const correspondance = actions.find(obj => obj.documentId === item.documentId);
+      const resultat = actionsPlastronModif.map(item => {
+        const correspondance = actions.find((obj: { documentId: string; }) => obj.documentId == item.documentId);
         return {
           ...item,
           categorie: correspondance ? correspondance.categorie.nom : null
         };
-      });
-      
-      console.log("list actions avec catégorie", resultat);
+      }); 
       //stocker les actions modélisées dans le plastron 
       await putActionPlastron(createdPlastronId, JSON.stringify(resultat));
 
@@ -326,7 +326,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       console.log("Starting simulation");
       console.log("plastron à lancer", plastronData.documentId);
 
-      await putLancePlastron(createdPlastronId as string).catch(err => {
+      await putStatusPlastron(createdPlastronId as string, "Lancé").catch(err => {
         console.log("Could not sync, postponed");
       });
 

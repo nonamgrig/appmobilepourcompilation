@@ -10,3 +10,12 @@ export type Action = {
         index: number, // UID
     }
 };
+
+export type ActionPlastron = {
+    documentId: string, // UID
+    type: string,
+    action : {
+        documentId : string, 
+        nom : string
+    }
+};
