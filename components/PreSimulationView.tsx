@@ -33,6 +33,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     getAllActions,
     deletePreviousPlastronData,
     getModelById,
+    getAllModels, 
     getActionsPlastron,
     getPlastronsByGroup,
     postPlastronRetex,
@@ -248,7 +249,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       const [actions, actionsPlastron, model] = await Promise.all([
         getAllActions(),
         getActionsPlastron(plastronDataPre.modele.documentId),
-        getModelById(plastronDataPre.modele.documentId),
+        getAllModels(plastronDataPre.modele.documentId),
       ]);
 
       setActions(actions);

@@ -140,10 +140,45 @@ const useStrapi = () => {
     }
   }
 
+  const getListModelsId = async (modelID : string) : Promise<string[]> => {
+    const model1 = await getModelById(modelID);
 
-  
+    const listEvent = extractEventDocumentIds(model1);
+
+    const listSymptome = await getLienModelesByEventIds(listEvent);
+    
+    return listSymptome 
+  }
 
   // Here we access all the data from a plastron model (given its id) and save in a variable, so we don't need to have a network through the SIMSSE
+  const getAllModels = async (modelID: string): Promise<PlastronModelItem[]> => {
+    // Récupération du modèle initial
+    const model1 = await getModelById(modelID);
+
+    // Récupération des symptôme modèles (IDs)
+    const listSymptome = await getListModelsId(modelID);
+
+    // Récupération des modèles associés à chaque symptôme (en parallèle)
+    const symptomModelRequests = listSymptome.map(symptomeID =>
+      getModelById(symptomeID)
+    );
+
+    const symptomModelResults = await Promise.allSettled(symptomModelRequests);
+
+    // Filtrer et aplatir les modèles valides
+    const symptomModels = symptomModelResults
+      .filter(r => r.status == "fulfilled")
+      .flatMap((r: any) => r.value as PlastronModelItem[]);
+
+    // Concaténation avec le modèle initial
+    const allModels = [...model1, ...symptomModels];
+
+    console.log("Liste finale des modèles :", allModels);
+
+    return allModels;
+  };
+
+  
   const getModelById = async (modelID:string) => {
     console.log("getModelById");
 
@@ -163,11 +198,73 @@ const useStrapi = () => {
     const res = await axios.get(url, {
       timeout: 10000,
     });
+
     return res.data.data as PlastronModelItem[];
   }
+  
+  //pour récupérer la liste des documents ID des events 
+  const extractEventDocumentIds = (models: PlastronModelItem[]): string[] => {
+    const ids = models
+      .map(item => item.event?.documentId)
+      .filter((id): id is string => typeof id == 'string');
+
+    // Supprimer les doublons
+    return Array.from(new Set(ids));
+  };
+
+
+  //on récupère tous les modèles symptomes associés à chacun des liens 
+  const getLienModelesByEventIds = async (eventIds: string[]): Promise<string[]> => {
+    const requests = eventIds.map(eventId => {
+      const url = `${apiURLEditor.current}/api/lien-modeles?populate=*&filters[event][documentId][$eq]=${eventId}`;
+      return axios.get(url, { timeout: 10000 }).then(res => res.data.data);
+    });
+
+    const results = await Promise.allSettled(requests);
+
+    // Récupère tous les modele.documentId valides
+    const allModelDocumentIds = results
+      .filter(r => r.status == 'fulfilled')
+      .flatMap((r: any) =>
+        r.value
+          .map((item: any) => item.modele?.documentId)
+          .filter((id: any): id is string => typeof id == 'string')
+      );
+
+    // Supprimer les doublons
+    return Array.from(new Set(allModelDocumentIds));
+  };
+
+
+  const getActionsPlastron = async (modelID: string): Promise<ActionPlastron[]> => {
+    // Actions du modèle principal
+    const actionsModel1 = await getActionsPlastronByModelID(modelID);
+
+    // Liste des modèles "symptômes" liés
+    const listSymptome = await getListModelsId(modelID);
+
+    // Requêtes en parallèle pour récupérer les actions des symptômes
+    const symptomeActionRequests = listSymptome.map(symptomeId =>
+      getActionsPlastronByModelID(symptomeId)
+    );
+
+    const symptomeActionResults = await Promise.allSettled(symptomeActionRequests);
+
+    // Extraire les actions valides
+    const symptomeActions = symptomeActionResults
+      .filter(r => r.status === 'fulfilled')
+      .flatMap((r: any) => r.value as ActionPlastron[]);
+
+    // Fusionner toutes les actions
+    const allActions = [...actionsModel1, ...symptomeActions];
+
+    return allActions;
+  };
+
+
 
   //Access actions linked to a specific plastron
-  const getActionsPlastron = async (modelID: string) => {
+  const getActionsPlastronByModelID = async (modelID: string) => {
 
     console.log("getActionsPlastron");
 
@@ -213,7 +310,7 @@ const useStrapi = () => {
     plastronId:string|null = null, 
     intervenantIds:Array<string>|null = null,
   ) => {
-    console.log("plastronId", plastronId)
+    
     const day = new Date();
     
     let addActionsHistory:ExamenRetexItem[] = [];
@@ -625,6 +722,7 @@ const useStrapi = () => {
     getLastTriageAction,
     fetchScenarios, 
     getAllActions,
+    getAllModels, 
     getModelById,
     getActionsPlastron,
     getPlastronsByGroup,
