@@ -31,7 +31,7 @@ const useStrapi = () => {
 
   useEffect(() => {
     let usedIp = serverIP || process.env.EXPO_PUBLIC_NETWORK_PATH;
-    apiURLEditor.current = `http://${usedIp}:1338`; //pour éviter pictounr
+    apiURLEditor.current = `http://${usedIp}:1338`; //pour éviter pictoune
     apiURLRetex.current = `http://${usedIp}:1339`;
   }, [serverIP]);
 
@@ -433,8 +433,16 @@ const useStrapi = () => {
       "evolutions-phys-vars",
       "plastrons",
     ];
+
+    // Obtenir la date du jour au format JJ/MM/AAAA
+    const today = new Date();
+    const date = today.toLocaleDateString("fr-FR"); // format JJ/MM/AAAA
+
     const deleteRequests = tables.map(async (table) => {
-      const url = `${apiURLRetex.current}/api/${table}?filters[plastronID][$eq]=${plastronId}`
+      let url2; 
+      if (table == 'evolutions-phys-vars' || table == 'actions-sur-plastrons') { url2 = `&filters[dateMiseAJour][$startsWith]=${date}` }
+      else {url2 = `&filters[dateId][$startsWith]=${date}`}
+      const url = `${apiURLRetex.current}/api/${table}?filters[plastronID][$eq]=${plastronId}` + url2;
       const resultToDelete = await axios.get(url);
       await Promise.all(resultToDelete.data.data.map((item:any) => {
 
