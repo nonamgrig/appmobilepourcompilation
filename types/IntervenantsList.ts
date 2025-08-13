@@ -3,7 +3,7 @@ import React from 'react';
 export type IntervenantItem = {
   intervenantID: string,
   nom: string,
-  class: "med"|"paramed"|"secouriste",
+  class: "obs"|"med"|"paramed"|"secouriste",
 };
 
 export type IntervenantsListProps = {

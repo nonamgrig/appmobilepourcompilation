@@ -332,7 +332,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       });
 
       await Promise.all([
-        pushExamenRetex("Start", plastronData.documentId, ['1000']),
+        pushExamenRetex("Start", plastronData.documentId, ['0000']),
         pushVariablesRetex()
       ]).catch(err => {
         console.log("Could not sync, postponed");

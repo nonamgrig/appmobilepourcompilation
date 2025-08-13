@@ -56,7 +56,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
   const { pushExamenRetex, pushVariablesRetex, getLastTriageAction} = useStrapi();
 
     // Content
-    
+   
       // Using context to update the state of each medical variable during its temporal evolution
     const {plastronPhysEvolutif, setPlastronPhysEvolutif} = useContext(PlastronPhysEvolutifContext);
     const refPlastronPhysEvol = useUpdateRef(plastronPhysEvolutif);
@@ -85,6 +85,9 @@ export default function IntervenantView(props:IntervenantViewProps) {
     const [categorySelected, setCategorySelected] = useState<string>("");
     const [showActionValidated, setShowActionValidated] = useState<boolean>(false);
     const [actionValidatedName, setActionValidatedName] = useState<string>("");
+
+    const [customActionText, setCustomActionText] = useState("");
+
 
 
       // UI measurements
@@ -158,7 +161,10 @@ export default function IntervenantView(props:IntervenantViewProps) {
     }
 
     const getActionEnabled = (action:Action) => {
-      return intervenantsList.some((intervenant:IntervenantItem) => action[intervenant.class] == true)
+      return intervenantsList.some((intervenant:IntervenantItem) => {
+        const intervenantClass = intervenant.class == "obs" ? "med" : intervenant.class;
+        return action[intervenantClass] == true
+      })
     }
 
 
@@ -192,23 +198,41 @@ export default function IntervenantView(props:IntervenantViewProps) {
     
     const displayVariable = (blocName: string) => {
       
+      
       setPhysDisplayVarWrapper(blocName, (id) => {
         const value = getCurrentPhysVarValue(id);
         if(value == undefined) return "err"
         else return value
       });
 
+      const isModeObs = intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs")
+
       if(blocTimeoutIds.current.has(blocName)){
         clearTimeout(blocTimeoutIds.current.get(blocName));
       }
-      // Using custom timeout implementation
-      blocTimeoutIds.current.set(blocName, 
-        setReactTimeout(
-          clearDisplayBloc, 
-          blocDisplayDuration, 
-          blocName
-        )
-      );
+      
+
+      if (isModeObs) { //Mode Observateur 
+        // Using custom timeout implementation
+        blocTimeoutIds.current.set(blocName, 
+          setReactTimeout(
+            //on veut relancer la fonction displayVarible pour toujours afficher les valeurs si on est en mode observateur 
+            () => displayVariable(blocName), 
+            blocDisplayDuration, 
+            blocName
+          )
+        );
+      } else { //Mode joueur
+        // Using custom timeout implementation
+        blocTimeoutIds.current.set(blocName, 
+          setReactTimeout(
+            clearDisplayBloc,
+            blocDisplayDuration, 
+            blocName
+          )
+        );
+      }
+      
     };
 
     const actionValidatedUIFeedback = (nomAction:string, duration = 3000) => {
@@ -260,6 +284,9 @@ export default function IntervenantView(props:IntervenantViewProps) {
         };
         // The first number of the ID means the type of medclass
         switch (data.id.charAt(0)) {
+          case "0": 
+            intervenantItem.class="obs"; 
+            break 
           case "1":
             intervenantItem.class= "med";
             break;
@@ -282,7 +309,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
 
     
     const warnLongPressReq = () => {
-      props.displayNotif("Pour activer, maintenez appuyé sur le bouton.");
+      props.displayNotif("Pour activer, maintenez appuyé le bouton.");
     }
 
 
@@ -324,6 +351,9 @@ export default function IntervenantView(props:IntervenantViewProps) {
 
     // Display the correct physVars on the first render
     useEffect(() => {
+
+      //TO DO réussir à afficher les valeurs sans appuyer pour la version obs 
+      
       // combine variables for PAS and PAD (arterial pressure).
       let displayVars:Record<string,PhysVarDisplaySubItem[]> = {};
 
@@ -346,7 +376,6 @@ export default function IntervenantView(props:IntervenantViewProps) {
             id: currVar.documentId,
             value: "-",
           });
-
         }
       )
 
@@ -355,7 +384,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
         displayVars[blockName].sort((a,b) => orderKeys.indexOf(a.name) - orderKeys.indexOf(b.name));
       });
 
-      setPhysVarsDisplay(displayVars);
+      setPhysVarsDisplay(displayVars);      
       
     },[plastronData]);
     
@@ -574,12 +603,39 @@ export default function IntervenantView(props:IntervenantViewProps) {
       <AnimatedModal visibility={showingPlastronInfo} onRequestClose={() => setShowingPlastronInfo(false)}>
         <AnimatedModal.Content>
           <AnimatedModal.Header closeButton>
-            <Text style={baseStyles.h2}>Plastron info</Text>
+            {!intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            <Text style={baseStyles.h2}>Plastron info</Text>}
+            {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            <Text style={baseStyles.h2}>{plastronData?.modele.titre}</Text>}
           </AnimatedModal.Header>
           <AnimatedModal.Body>
             <Text style={{marginBottom: 20}}>{plastronData?.profil.age} ans</Text>
-            <Text style={baseStyles.h3}>Description</Text>
-            <Text style={{marginBottom: 20}}>{plastronData?.modele.description}</Text>
+            {/* <Text style={baseStyles.h3}>Contexte</Text>
+            <Text style={{marginBottom: 20}}>{plastronData?.modele.description}</Text> */}
+
+            {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            (<Text style={baseStyles.h3}>Description</Text>)}
+            {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            (<Text style={{ marginBottom: 20 }}>
+                {plastronData?.modele.description}
+              </Text>
+            )}
+
+            {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            (<Text style={baseStyles.h3}>Attendus Formation</Text>)}
+            {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            (<Text style={{ marginBottom: 20 }}>
+                {plastronData?.modele.examen}
+              </Text>
+            )}
+
+            {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            (<Text style={baseStyles.h3}>Description Plastron</Text>)}
+            {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
+            (<Text style={{ marginBottom: 20 }}>
+                {plastronData?.modele.description_cachee}
+              </Text>
+            )}
           </AnimatedModal.Body>
         </AnimatedModal.Content>
       </AnimatedModal>
@@ -651,7 +707,10 @@ export default function IntervenantView(props:IntervenantViewProps) {
                                 `Faire ${action.nom} (${action.categorie.nom}) ${action.documentId}`,
                                 plastronData?.documentId,
                                 intervenantsList
-                                  .filter(intervenant => action[intervenant.class] == true) // Get sublist of connected intervenants that are allowed to do this specific action
+                                  .filter(intervenant => {
+                                      const intervenantClass = intervenant.class == "obs" ? "med" : intervenant.class;
+                                      return action[intervenantClass] == true
+                                    }) // Get sublist of connected intervenants that are allowed to do this specific action
                                   .map(intervenant => intervenant.intervenantID)
                               ),
                               pushVariablesRetex()
@@ -681,6 +740,57 @@ export default function IntervenantView(props:IntervenantViewProps) {
                   ))}
                 </View>
               )}
+              {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class === "obs") && (
+                <>
+                  <View style={{ marginTop: 20 }}>
+                    <Text style={baseStyles.h3}>Ajouter une action personnalisée</Text>
+                    <TextInput
+                      placeholder="Décrire l'action manuellement"
+                      value={customActionText}
+                      onChangeText={setCustomActionText}
+                      style={{
+                        borderColor: "#ccc",
+                        borderWidth: 1,
+                        borderRadius: 5,
+                        padding: 10,
+                        marginTop: 10,
+                        backgroundColor: "#fff"
+                      }}
+                    />
+                    <AnimatedButton
+                      style={{
+                        marginTop: 10,
+                        backgroundColor: baseStyles.maincolor.color,
+                        padding: 10,
+                        borderRadius: 5,
+                        alignItems: "center"
+                      }}
+                      onPress={() => {
+                        if (customActionText.trim() == "") return;
+
+                        const newAction = {
+                          nom: customActionText,
+                          categorie: { nom: "Autre" },
+                        };
+
+                        props.appendAction(newAction as Action);
+                        pushExamenRetex(
+                          `Faire ${newAction.nom} (Autre)`,
+                          plastronData?.documentId,
+                          intervenantsList.map(i => i.intervenantID)
+                        ).catch(() => console.log("Sync échoué (custom action), reporté"));
+
+                        actionValidatedUIFeedback(newAction.nom);
+                        setCustomActionText("");
+                        setShowActions(false);
+                      }}
+                    >
+                      <Text style={{ color: "#fff" }}>Ajouter cette action</Text>
+                    </AnimatedButton>
+                  </View>
+                </>
+              )}
+
             </ScrollView>
           </AnimatedModal.Body>
           
@@ -778,6 +888,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
             <Text style={styles.plastronButtonText}>Info plastron</Text>
             <Ionicons name="arrow-forward-outline" color={baseStyles.maincolor.color} size={30}/>
           </AnimatedButton>
+
           <View style={styles.varRowContain}>
           {Object.keys(physVarsDisplay).length > 0 && 
               formatDisplayVars(3).map((physVarArray, col) => {

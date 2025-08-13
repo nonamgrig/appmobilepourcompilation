@@ -1,4 +1,4 @@
-import { useState  } from "react";
+import { useContext, useState  } from "react";
 
 import AnimatedButton, { AnimatedButtonProps } from "./Button";
 import AnimatedView from './View';
@@ -7,6 +7,8 @@ import { StyleSheet } from 'react-native';
 import { baseStyles } from "../../styles/globalstyles";
 
 import { useSetTimeoutManager } from '../../tools/AppHooks';
+import { IntervenantsListContext } from "../../providers/intervenantsContextProvider";
+import { IntervenantItem } from "../../types/IntervenantsList";
 
 export interface PhysVarButtonProps extends AnimatedButtonProps {
   nom: string,
@@ -20,6 +22,8 @@ export default ({nom, valeurs, measureFunc, style, varColor, ...rest}:PhysVarBut
   const [loading, setLoading] = useState<boolean>(false);
   
   const {clearAllTimeouts} = useSetTimeoutManager();
+
+  const {intervenantsList, setIntervenantsList} = useContext(IntervenantsListContext);
 
   const styles = StyleSheet.create({ // Inside of the export because changes depending on the color
     button: {
@@ -56,63 +60,99 @@ export default ({nom, valeurs, measureFunc, style, varColor, ...rest}:PhysVarBut
     }
   });
 
-  
-  return(
-    <AnimatedButton 
-    style={styles.button} 
-    onPressIn={(event) => {
-      clearAllTimeouts();
-      setLoading(true);
-      setTimeout(() => {
-        setLoading(false);
+  if (intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs")) { //Mode observateur 
+      return(
+      <AnimatedButton style={styles.button} 
+      onPressIn={(event) => {measureFunc()}}>
+        <Text key="nom" style={styles.textVar} >
+          {nom}: 
+        </Text>
+    
+        { valeurs.length == 2 ?
+          (<View style={{
+              flexDirection: 'row', 
+              alignItems:'center', 
+              justifyContent:'center',
+              width: '100%',
+              paddingTop: 10}}>
+            <Text key="val1" style={[styles.textVal, {transform:[{translateY: -7},{translateX: 3}]}]}>
+              {valeurs[0]}
+            </Text>
+            <Text style={styles.textVal}>/</Text>
+            <Text key="val2" style={[styles.textVal, {transform:[{translateY: 7},{translateX: -3}]}]}>
+              {valeurs[1]}
+            </Text>
+          </View>)
+          :
+          (
+            <Text key="val" style={styles.textVal}>
+              {valeurs.join(" / ")}
+            </Text>
+          )
+        }
+          
+      </AnimatedButton>
+    )
+
+  } else { //Mode joueur 
+      return(
+      <AnimatedButton 
+      style={styles.button} 
+      onPressIn={(event) => {
+        clearAllTimeouts();
+        setLoading(true);
         setTimeout(() => {
-          measureFunc();
-          Vibration.vibrate(60);
-        }, 50);
-    }, activationDelay);
-    }}
-    {...rest}
-    >
-      <Text key="nom" style={styles.textVar} >
-        {nom}:
-      </Text>
-  
-      <AnimatedView 
-      animateInOut
-      duration={200}
-      startValues={{
-        opacity: 1,
-        trY: 30,
-        scale: 0,
+          setLoading(false);
+          setTimeout(() => {
+            measureFunc();
+            Vibration.vibrate(60);
+          }, 50);
+      }, activationDelay);
       }}
-      visibility={loading}
-      style={styles.spinnerContain}>
-        <ActivityIndicator style={{margin:0}} size={60} color={varColor} />
-      </AnimatedView>
-      { valeurs.length == 2 ?
-        (<View style={{
-            flexDirection: 'row', 
-            alignItems:'center', 
-            justifyContent:'center',
-            width: '100%',
-            paddingTop: 10}}>
-          <Text key="val1" style={[styles.textVal, {transform:[{translateY: -7},{translateX: 3}]}]}>
-            {valeurs[0]}
-          </Text>
-          <Text style={styles.textVal}>/</Text>
-          <Text key="val2" style={[styles.textVal, {transform:[{translateY: 7},{translateX: -3}]}]}>
-            {valeurs[1]}
-          </Text>
-        </View>)
-        :
-        (
-          <Text key="val" style={styles.textVal}>
-            {valeurs.join(" / ")}
-          </Text>
-        )
-      }
-        
-    </AnimatedButton>
-  )
+      {...rest}
+      >
+        <Text key="nom" style={styles.textVar} >
+          {nom}:
+        </Text>
+    
+        <AnimatedView 
+        animateInOut
+        duration={200}
+        startValues={{
+          opacity: 1,
+          trY: 30,
+          scale: 0,
+        }}
+        visibility={loading}
+        style={styles.spinnerContain}>
+          <ActivityIndicator style={{margin:0}} size={60} color={varColor} />
+        </AnimatedView>
+        { valeurs.length == 2 ?
+          (<View style={{
+              flexDirection: 'row', 
+              alignItems:'center', 
+              justifyContent:'center',
+              width: '100%',
+              paddingTop: 10}}>
+            <Text key="val1" style={[styles.textVal, {transform:[{translateY: -7},{translateX: 3}]}]}>
+              {valeurs[0]}
+            </Text>
+            <Text style={styles.textVal}>/</Text>
+            <Text key="val2" style={[styles.textVal, {transform:[{translateY: 7},{translateX: -3}]}]}>
+              {valeurs[1]}
+            </Text>
+          </View>)
+          :
+          (
+            <Text key="val" style={styles.textVal}>
+              {valeurs.join(" / ")}
+            </Text>
+          )
+        }
+          
+      </AnimatedButton>
+    )
+  }
+
 }
 
