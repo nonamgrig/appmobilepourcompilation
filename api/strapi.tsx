@@ -2,7 +2,7 @@ import axios from "axios";
 {/*Package for saving data locally in the device*/} 
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { PlastronData, PlastronPhysVar } from "../types/PlastronData";
-import { PlastronModelItem } from "../types/Model";
+import { EventPlastron, PlastronModelItem } from "../types/Model";
 import { ExamenRetexItem, PhysVarsRetexItem } from "../types/Retex";
 import { useEffect, useContext, useRef } from "react";
 import { ServerContext } from "../providers/serverContextProvider";
@@ -12,7 +12,6 @@ import { ActionHistoryContext } from "../providers/actionHistoryContextProvider"
 import { Action, ActionPlastron } from "../types/Actions";
 import { setStorage } from "../tools/Storage";
 import { useUpdateRef } from "../tools/AppHooks";
-
 
 const useStrapi = () => {
 
@@ -141,22 +140,91 @@ const useStrapi = () => {
   }
 
   const getListModelsId = async (modelID : string) : Promise<string[]> => {
-    const model1 = await getModelById(modelID);
+    //on récupère toutes les actions qui pourraient déclenchée un symptôme 
+    const events = await getActionsPlastronByModelID(modelID);
+    // console.log("list events", events)
 
-    const listEvent = extractEventDocumentIds(model1);
+    //on récupère les liens modeles avec ces events 
+    const lienModeles = await getLienModelesByEventIds(events);
+    // console.log("lien symptome", lienModeles)
 
-    const listSymptome = await getLienModelesByEventIds(listEvent);
-    
-    return listSymptome 
+    const listSymptome = lienModeles
+      .map((item: any) => item?.modele?.documentId)
+      .filter((id: any): id is string => typeof id == 'string'); // Pour filtrer proprement
+
+    const uniqueListSymptome = Array.from(new Set(listSymptome)); // Pour supprimer les doublons
+
+    return uniqueListSymptome
   }
+
+
+
+  const getModelStartedByAction = async (modelID: string): Promise<Array<{
+      modeleID: string;
+      typeLink: string;
+      timerLink: number;
+      event: EventPlastron;
+    }>> => {
+    const events = await getActionsPlastronByModelID(modelID);
+    // console.log("list events", events);
+
+    const lienModeles = await getLienModelesByEventIds(events);
+    // console.log("lienModeles", lienModeles);
+
+    const listSymptomeStartedByAction: Array<{
+      modeleID: string;
+      typeLink: string;
+      timerLink: number;
+      event: EventPlastron;
+    }> = [];
+
+    lienModeles.forEach((lien: any) => {
+      if (lien?.event?.type !== "start") { //pour les liens reliées avec des actions 
+        const modeleID = lien?.modele?.documentId;
+        const eventData = lien?.event;
+        const typeLink = lien?.type;
+        const timerLink = lien?.timer;
+
+        if (modeleID && eventData && typeLink) {
+          listSymptomeStartedByAction.push({
+            modeleID,
+            typeLink,
+            timerLink,
+            event: eventData
+          });
+        }
+      } else { //pour les liens reliés avec un start 
+        const modeleID = lien?.modele?.documentId;
+        const eventData = lien?.event; //on garde l'event start 
+        const typeLink = lien?.type;
+        const timerLink = lien?.timer;
+
+        if (modeleID && eventData && typeLink) {
+          listSymptomeStartedByAction.push({
+            modeleID,
+            typeLink,
+            timerLink,
+            event: eventData
+          });
+        }
+      }
+    });
+
+
+    return listSymptomeStartedByAction
+    
+  };
+
+
 
   // Here we access all the data from a plastron model (given its id) and save in a variable, so we don't need to have a network through the SIMSSE
   const getAllModels = async (modelID: string): Promise<PlastronModelItem[]> => {
-    // Récupération du modèle initial
+    // Récupération du modèle initial, en récupérant les liens event-trends
     const model1 = await getModelById(modelID);
 
     // Récupération des symptôme modèles (IDs)
     const listSymptome = await getListModelsId(modelID);
+    // console.log("symp", listSymptome)
 
     // Récupération des modèles associés à chaque symptôme (en parallèle)
     const symptomModelRequests = listSymptome.map(symptomeID =>
@@ -165,22 +233,160 @@ const useStrapi = () => {
 
     const symptomModelResults = await Promise.allSettled(symptomModelRequests);
 
+
     // Filtrer et aplatir les modèles valides
-    const symptomModels = symptomModelResults
+    let symptomModels = symptomModelResults
       .filter(r => r.status == "fulfilled")
       .flatMap((r: any) => r.value as PlastronModelItem[]);
+    // console.log("symtome model", symptomModels)
+
+    
+
+    //il faut relier les symptômes avec leur action de déclenchement dans le modèle1 
+    //soit relié avec start donc rien à faire, (action de type start dans le modèle se lance à t0)
+    //soit relié avec une action donc il faut changer le type de l'event start dans le symptomModels et le remplacer par l'action de déclenchement
+    const listSymptomeToModified = await getModelStartedByAction(modelID);
+
+    // on a les symptomes avec leurs actions de déclenchement dans une liste
+    // console.log("listSymptometoMod", listSymptomeToModified);
+
+
+    const newLinksToAdd: PlastronModelItem[] = [];
+    // il faut aussi, parmi les liens pause et stop, 
+    // relier l'action de déclenchement à toutes les tendances dans le symptôme
+    listSymptomeToModified.forEach((item) => {
+      if (item.typeLink == "pause" || item.typeLink == "stop") {
+        // Pour chaque élément dans symptomModels
+        symptomModels.forEach((lien) => {
+          const modeleId = lien?.event?.modele?.documentId;
+
+          if (modeleId == item.modeleID) {
+            const link: PlastronModelItem = {
+              documentId: getRandomString(3), // à adapter si nécessaire
+              type: item.typeLink as 'start' | 'pause' | 'stop',
+              timer: item.timerLink,
+              event: item.event,
+              trend: lien.trend,
+            };
+            newLinksToAdd.push(link);
+          }
+        });
+      }
+    });
+
+    const filteredLinks: PlastronModelItem[] = [];
+    const seenTrends = new Set<string>();
+
+    newLinksToAdd.forEach(link => {
+      const trendId = link.trend?.documentId;
+
+      if (trendId && !seenTrends.has(trendId)) {
+        seenTrends.add(trendId);
+        filteredLinks.push(link);
+      }
+    });
+
+    // console.log('newlink', filteredLinks)
+
+    let startModel : PlastronModelItem[] = []; 
+
+    //TO DO repartir de l'ancien symptom Model 
+    // ici, je pars des liens dans le modèle et pour les liens start, 
+    // si le symptome est déclenché par une action, je lui associe cette action de démarrage au lieu du start
+    // symptomModels.forEach((lien) => {
+    //   const modeleId = lien?.event?.modele?.documentId;
+
+    //   if (modeleId) {
+        
+    //     // on cherche les actions correspondantes à ce modeleId qui ne sont pas des déclenchements 
+    //      const potentialEvents = listSymptomeToModified.filter(item => item.modeleID == modeleId && item.typeLink !="start");
+
+    //     //pour les liens avec des actions
+    //     potentialEvents.forEach((eventAction) => {
+    //       console.log("event", eventAction)
+    //       if (eventAction.typeLink == "start" && lien.event.type == "start") { //que pour les starts dedans et hors du modele
+    //         lien.event = eventAction.event; // remplace l'event dans symptomsModels
+    //       }
+    //     });
+
+    //   }
+    // });
+
+    //la liste de tous liens dans le symptome qui doivent être enclenchés au lancement du symptome
+    const startSymptome = symptomModels.filter(lien => lien.event.type == "start")
+    // console.log("start symp", startSymptome)
+
+    //pour chaque symptome
+    listSymptome.forEach((modelID) => {
+        //on va chercher tous les éléments à modifier de type start
+        const startEvent = listSymptomeToModified.filter(item => item.modeleID == modelID && item.typeLink =="start");
+
+        let countStart = 0;
+        let countAction = 0; 
+        //pour chaque lien start, on regarde si elles sont déclenchées par l'event start
+        startEvent.forEach((startLink) => {
+          if (startLink.event.type == "start") {
+            countStart ++; 
+            //on ajoute au décompte (normalement il ne peut pas être supérieur à 1)
+          } else if (startLink.event.type == "action") {
+            //si on a une action qui doit déclencher le symptome
+            //on ajoute les liens start reliés à cette action
+             startSymptome.forEach ((lien) => {
+              const linkStart: PlastronModelItem = {
+                documentId: getRandomString(3), // à adapter si nécessaire
+                type: startLink.typeLink as 'start' | 'pause' | 'stop',
+                timer: startLink.timerLink,
+                event: startLink.event,
+                trend: lien.trend,
+              };
+              
+              startModel.push(linkStart);
+             }
+            )
+            countAction ++;  
+          }
+        })
+
+        //on vérifie si on a countStart > 0, dans ce cas, on laisse dans symptomeModels le lien de déclenchement avec event.type == start 
+        //sinon il faut le supprimer 
+        if (countStart == 0) {
+          console.log("aucun lien start en le symptome et le start")
+          symptomModels = symptomModels.filter((lien) => {
+            // Garder tous les éléments sauf ceux qui correspondent au critère
+            return !(lien.event.modele.documentId == modelID && lien.event.type == "start");
+          });
+        }
+
+    })
+
+    // console.log("startModel", startModel)
+  
+
 
     // Concaténation avec le modèle initial
-    const allModels = [...model1, ...symptomModels];
+    const allModels = [...model1, ...symptomModels,... startModel, ...filteredLinks];
 
-    console.log("Liste finale des modèles :", allModels);
+    // console.log("Liste finale des modèles :", allModels);
 
     return allModels;
   };
 
+  const getRandomString = (length: number): string => {
+    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+
+    for (let i = 0; i < length; i++) {
+      const randomIndex = Math.floor(Math.random() * chars.length);
+      result += chars[randomIndex];
+    }
+
+    return result;
+  };
+
+
   
   const getModelById = async (modelID:string) => {
-    console.log("getModelById");
+    console.log("getModelById", modelID);
 
     const url = `${apiURLEditor.current}/api/event-trend-liens?
       populate[event][fields][0]=documentId
@@ -199,6 +405,7 @@ const useStrapi = () => {
       timeout: 10000,
     });
 
+
     return res.data.data as PlastronModelItem[];
   }
   
@@ -214,26 +421,31 @@ const useStrapi = () => {
 
 
   //on récupère tous les modèles symptomes associés à chacun des liens 
-  const getLienModelesByEventIds = async (eventIds: string[]): Promise<string[]> => {
-    const requests = eventIds.map(eventId => {
-      const url = `${apiURLEditor.current}/api/lien-modeles?populate=*&filters[event][documentId][$eq]=${eventId}`;
+  const getLienModelesByEventIds = async (eventIds: ActionPlastron[]): Promise<any[]> => {
+    const requests = eventIds.map(event => {
+      const url = `${apiURLEditor.current}/api/lien-modeles?
+      populate[event][fields][0]=documentId
+      &populate[event][fields][1]=type
+      &populate[event][populate][modele][fields][0]=documentId
+      &populate[event][populate][action][fields][0]=documentId
+      &populate[event][populate][action][fields][1]=nom
+      &populate[modele][fields][0]=documentId
+      &populate[modele][fields][1]=titre
+      &fields[0]=documentId&fields[1]=type&fields[2]=timer
+      &filters[event][documentId][$eq]=${event.documentId}`;
       return axios.get(url, { timeout: 10000 }).then(res => res.data.data);
     });
 
     const results = await Promise.allSettled(requests);
 
-    // Récupère tous les modele.documentId valides
-    const allModelDocumentIds = results
+    // On extrait uniquement les résultats réussis (fulfilled), et on aplatit les tableaux
+    const allLienModeles = results
       .filter(r => r.status == 'fulfilled')
-      .flatMap((r: any) =>
-        r.value
-          .map((item: any) => item.modele?.documentId)
-          .filter((id: any): id is string => typeof id == 'string')
-      );
+      .flatMap((r: any) => r.value); // On garde les objets bruts
 
-    // Supprimer les doublons
-    return Array.from(new Set(allModelDocumentIds));
+    return allLienModeles;
   };
+
 
 
   const getActionsPlastron = async (modelID: string): Promise<ActionPlastron[]> => {

@@ -107,7 +107,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
 
 
 
-    const triageList = [ 'UR', 'UA', 'EU' ];
+    const triageList = [ 'UR', 'UA', 'EU' , 'D', 'E/I'];
 
 
     // Some variables can be surnamed of grouped into one display block here, the value is the display block name
@@ -134,7 +134,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
   
     const registerInactivityTimeout = () => {
       if(activityTimeoutId.current) clearTimeout(activityTimeoutId.current);
-      activityTimeoutId.current = setReactTimeout(() => setIntervenantsList([]), 5*60*1000);
+      activityTimeoutId.current = setReactTimeout(() => setIntervenantsList([]),2*60*1000);
     }
 
     const parseActions = (rowSize = 2, defaultCategory = "Autre") => {
@@ -193,8 +193,31 @@ export default function IntervenantView(props:IntervenantViewProps) {
 
     const clearDisplayBloc = (blocName: string) => {
       blocTimeoutIds.current.delete(blocName);
-      setPhysDisplayVarWrapper(blocName, (id) => "-");
+       setPhysDisplayVarWrapper(blocName, (id) => "-");
+    }
+
+    const clearAllDisplayBlocs = () => {
+      const clearedDisplayObject: Record<string, PhysVarDisplaySubItem[]> = {};
+
+      Object.entries(refPhysVarsDisplay.current).forEach(([blocName, itemArray]) => {
+        clearedDisplayObject[blocName] = itemArray.map(displayItem => ({
+          ...displayItem,
+          value: "-", // Vide la valeur
+        }));
+
+        // Annule les timeouts au passage
+        if (blocTimeoutIds.current.has(blocName)) {
+          clearTimeout(blocTimeoutIds.current.get(blocName));
+          blocTimeoutIds.current.delete(blocName);
+        }
+      });
+
+      setPhysVarsDisplay(clearedDisplayObject);
     };
+
+
+
+
     
     const displayVariable = (blocName: string) => {
       
@@ -298,6 +321,8 @@ export default function IntervenantView(props:IntervenantViewProps) {
             break;
         }
         setIntervenantsList([...intervenantsList, intervenantItem]);
+
+        clearAllDisplayBlocs();
       
       }
       
@@ -421,14 +446,36 @@ export default function IntervenantView(props:IntervenantViewProps) {
 
 
 
+    const triageBackgroundColor = (() => {
+      if (!letters) return '#FFFFFF';
 
-    const changingStyles = StyleSheet.create({
-      // Definition of the color of the triage based on the CHU standard (as found in their DB
-      triageIconView:{
-        backgroundColor: letters ? (letters === 'UR' ? '#FFFF00' : '#FF0000') : '#FFFFFF',
-        borderColor: letters ? (letters === 'UA' ? '#D3D3D3' : '#000000') : '#000000',
-      }
-    });
+      if (letters === 'UR') return '#FFFF00';       // jaune
+      if (letters === 'UA') return '#FF0000';       // rouge
+      if (letters === 'EU') return '#FF0000';       // rouge
+      if (letters === 'D')  return '#000000';       // noir
+      if (letters === 'E/I') return 'rgb(37, 115, 54)'; // vert
+
+      return '#FFFFFF'; // couleur par défaut
+    })();
+
+    const triageTextColor = (() => {
+      if (!letters) return '#000000';
+
+      if (letters === 'UR') return '#000000';       // texte noir
+      if (letters === 'UA') return '#FFFFFF';       // texte blanc
+      if (letters === 'EU') return '#000000';       // texte noir
+      if (letters === 'D')  return '#FFFFFF';       // texte blanc
+      if (letters === 'E/I') return '#FFFFFF';      // texte blanc
+
+      return '#000000'; // texte par défaut
+    })();
+
+
+    const triageBorderColor = (() => {
+      if (letters === 'UA' || letters === 'E/I') return '#FFFFFF'; // ✅ blanche
+      return '#000000'; // sinon noire
+    })();
+
 
 
 
@@ -519,6 +566,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
                             (iterInterv:IntervenantItem) => iterInterv.intervenantID != interv.intervenantID
                           )
                         );
+                        clearAllDisplayBlocs();
                       }}
                       >
                         <CloseIcon size="5" mt="0.5" color="red.500" />
@@ -630,7 +678,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
             )}
 
             {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
-            (<Text style={baseStyles.h3}>Description Plastron</Text>)}
+            (<Text style={baseStyles.h3}>Consignes Plastron</Text>)}
             {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && 
             (<Text style={{ marginBottom: 20 }}>
                 {plastronData?.modele.description_cachee}
@@ -740,7 +788,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
                   ))}
                 </View>
               )}
-              {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class === "obs") && (
+              {intervenantsList.some((intervenant: IntervenantItem) => intervenant.class == "obs") && (
                 <>
                   <View style={{ marginTop: 20 }}>
                     <Text style={baseStyles.h3}>Ajouter une action personnalisée</Text>
@@ -830,7 +878,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
                     setShowTriage(false);
                   }, 50);
                 }} > 
-                  <Text style={styles.actionItemText}>
+                  <Text >
                     Trier comme {triageItem}
                   </Text>
                 </AnimatedButton>
@@ -889,47 +937,59 @@ export default function IntervenantView(props:IntervenantViewProps) {
             <Ionicons name="arrow-forward-outline" color={baseStyles.maincolor.color} size={30}/>
           </AnimatedButton>
 
-          <View style={styles.varRowContain}>
-          {Object.keys(physVarsDisplay).length > 0 && 
-              formatDisplayVars(3).map((physVarArray, col) => {
-                return (<View style={styles.varRow} key={col}>
-                  {physVarArray.map(physVarItem => (
+        <View style={styles.varRowContain}>
+          {Object.keys(physVarsDisplay).length > 0 &&
+            formatDisplayVars(3).map((physVarArray, col) => (
+              <View style={styles.varRow} key={col}>
+                {physVarArray.map(physVarItem => {
+                  // Formater les valeurs ici :
+                  const formattedValues = physVarItem.value.map(val => {
+                    if (
+                      typeof val == "number" &&
+                      physVarItem.name != "HemoCue" &&
+                      physVarItem.name != "T°"
+                    ) {
+                      return Math.round(val); // 0 chiffre après la virgule
+                    }
+                    return val; // garder tel quel sinon (string ou exceptions)
+                  });
+
+                  return (
                     <PhysVarButton
-                    nom={physVarItem.name}
-                    valeurs={physVarItem.value}
-                    varColor={physVarItem.color[0]}
-                    key={physVarItem.name}
-                    measureFunc={() => {
-                      setPileMesures([
-                        {
-                          id: physVarItem.id, 
-                          value: physVarItem.value,
-                          date: Date.now()
-                        },
-                        ...pileMesures,
-                      ]);
+                      nom={physVarItem.name}
+                      valeurs={formattedValues}
+                      varColor={physVarItem.color[0]}
+                      key={physVarItem.name}
+                      measureFunc={() => {
+                        setPileMesures([
+                          {
+                            id: physVarItem.id,
+                            value: physVarItem.value,
+                            date: Date.now()
+                          },
+                          ...pileMesures,
+                        ]);
 
-                      displayVariable(physVarItem.name);
+                        displayVariable(physVarItem.name);
 
-                      Promise.allSettled([
-                        pushExamenRetex(
-                          `Mesurer ${physVarItem.name} ${physVarItem.id}`,
-                          plastronData?.documentId,
-                          intervenantsList.map(intervenant => intervenant.intervenantID)
-                        ),
-                        pushVariablesRetex(),
-                      ])
-                      
-                      registerInactivityTimeout();
-                    }}
-                  />
-                  ))}
-                </View>)
+                        Promise.allSettled([
+                          pushExamenRetex(
+                            `Mesurer ${physVarItem.name} ${physVarItem.id}`,
+                            plastronData?.documentId,
+                            intervenantsList.map(intervenant => intervenant.intervenantID)
+                          ),
+                          pushVariablesRetex(),
+                        ]);
 
-              })
-            }
+                        registerInactivityTimeout();
+                      }}
+                    />
+                  );
+                })}
+              </View>
+            ))}
+        </View>
 
-          </View>
 
         </AnimatedView>
   
@@ -961,9 +1021,20 @@ export default function IntervenantView(props:IntervenantViewProps) {
           <AnimatedButton 
           onPress={() => setShowTriage(true)}
           style={styles.actionButton}>
-            <View style={[changingStyles.triageIconView, styles.triageIconView]}>
-              <Text style={styles.triageIconText}>{letters || "-"}</Text>
+            <View
+              style={[
+                styles.triageIconView,
+                {
+                  backgroundColor: triageBackgroundColor,
+                  borderColor: triageBorderColor,
+                },
+              ]}
+            >
+              <Text style={[styles.triageIconText, { color: triageTextColor }]}>
+                {letters || "-"}
+              </Text>
             </View>
+
             <Text style={styles.actionButtonText}>Triage</Text>
           </AnimatedButton>
           <AnimatedButton 
@@ -1136,7 +1207,6 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   triageIconText:{
-    color:"black", 
     fontSize:20
   },
     // modal

@@ -174,7 +174,8 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
             await deletePreviousPlastronData(plastronDataPre.documentId)
           
             createdPlastronId = await postPlastronRetex(plastronDataPre)
-            setCreatedPlastronId(createdPlastronId)    
+            setCreatedPlastronId(createdPlastronId)   
+            setOpenAskExists(false); 
           } else if (behaviour == 'loadBack'){
             // Todo : Switch to localstorage to get previous physvars as server might have been offline
             physVars = await getStorage("lastPhysVars");
@@ -189,7 +190,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       const selectedScenario = scenarios.find(
         item => item.documentId.trim() == scenario
       );
-      console.log("selected scenario", selectedScenario)
+      // console.log("selected scenario", selectedScenario)
         
       if (!scenario) {
         throw "Emply scenario data";
@@ -203,7 +204,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
           scenarioDocId = await postExerciceRetex(simulationId as string, 'erreur titre', '')
         }
         
-        console.log("Id scénario créé", scenarioDocId); 
+        // console.log("Id scénario créé", scenarioDocId); 
 
         //créer le lien entre le scénario et le plastron
         await connectExercicePlastron(scenarioDocId, createdPlastronId); 
@@ -245,6 +246,8 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
 
       await setStorage('lastPlastronId', plastronDataPre.documentId);
       setPlastronPhysEvolutif(physVars);
+
+      // console.log("plastron", plastronDataPre)
      
       const [actions, actionsPlastron, model] = await Promise.all([
         getAllActions(),
@@ -252,6 +255,10 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
         getAllModels(plastronDataPre.modele.documentId),
       ]);
 
+      // console.log('action', actionsPlastron)
+      // console.log('modele', model)
+      //TO DO voir pourquoi alors que dans le modèle on a l'action vers la tendance dans le symptome ça ne fonctionne pas 
+      
       setActions(actions);
 
       const seen = new Set();
@@ -528,11 +535,12 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
                     <Text style={baseStyles.h3}>Description</Text>
                     <Text style={{marginBottom: 20}}>{selectedPlastronData.modele.description || "Rien à afficher"}</Text>
                     
-                    <Text style={baseStyles.h3}>Description cachée</Text>
-                    <Text style={{marginBottom: 20}}>{selectedPlastronData.modele.description_cachee || "Rien à afficher"}</Text>
-
                     <Text style={baseStyles.h3}>Attendus Formation</Text>
                     <Text>{selectedPlastronData.modele.examen || "Rien à afficher"}</Text>
+
+                    <Text style={baseStyles.h3}>Consignes Plastron</Text>
+                    <Text style={{marginBottom: 20}}>{selectedPlastronData.modele.description_cachee || "Rien à afficher"}</Text>
+                    
                   </View>
                 </AnimatedView>
                 {!downloadPlastron ? (

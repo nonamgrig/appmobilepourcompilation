@@ -4,6 +4,7 @@ export type PlastronModelItem = {
     type: "start"|"pause"|"stop",
     timer: number,
     event: {
+        modele: any
         documentId: string,
         type: "start"|"action",
         action?:{
@@ -21,3 +22,13 @@ export type PlastronModelItem = {
         }
     }
 }
+
+export type EventPlastron = {
+  modele: any;
+  documentId: string;
+  type: "start" | "action";
+  action?: {
+    documentId: string;
+    nom: string;
+  };
+};

@@ -89,7 +89,6 @@ export default function Pages() {
 
   const registerModelItems = (modelArray:PlastronModelItem[]) => {
     let updatedInfluencePile = refInfluencePile.current;
-    
     modelArray.forEach(modelItem => {
       if(modelItem.type == "start"){ 
        
@@ -130,7 +129,7 @@ export default function Pages() {
           ) {
             
             if(physVar?.valeur == undefined) {
-              throw "Physical Variabvle was not properly initialised";
+              throw "Physical Variable was not properly initialised";
             }
 
               // The ! is a Non-Null Assertion to calm down typescript
