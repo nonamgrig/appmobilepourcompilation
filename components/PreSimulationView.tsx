@@ -151,7 +151,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     plastronDataPre = selectedPlastronData,
     scenario = simulationId, 
   ) => {
-    console.log("setUpPlastron"); 
+    console.log("setUpPlastron", plastronDataPre); 
     if(!plastronDataPre){
       throw "Emply plastron data";
     }
@@ -184,13 +184,20 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
         } else throw err;
       }
       
+      if (behaviour == "loadBack") {
+        console.log("behavior", behaviour)
+        console.log("loadback", plastronDataPre.groupe.scenario.documentId)
+        scenario = plastronDataPre.groupe.scenario.documentId
+        setSimulationId(plastronDataPre.groupe.scenario.documentId)
+      }
       //on récupère les données de la liste des scénarios 
       let scenarioDocId: string; 
+      console.log("scenario", scenario)
     
       const selectedScenario = scenarios.find(
         item => item.documentId.trim() == scenario
       );
-      // console.log("selected scenario", selectedScenario)
+      console.log("selected scenario", selectedScenario)
         
       if (!scenario) {
         throw "Emply scenario data";
@@ -198,16 +205,19 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
 
       //ajouter l'enregistrement du scénario si non existant dans la base de données et le lien au plastron 
       try {
-        if (selectedScenario) {
-          scenarioDocId = await postExerciceRetex(simulationId as string, selectedScenario.titre, selectedScenario.description)
-        } else {
-          scenarioDocId = await postExerciceRetex(simulationId as string, 'erreur titre', '')
-        }
-        
-        // console.log("Id scénario créé", scenarioDocId); 
+        if (behaviour != "loadBack") {
+          if (selectedScenario ) {
+            scenarioDocId = await postExerciceRetex(simulationId as string, selectedScenario.titre, selectedScenario.description)
+          } else {
+            scenarioDocId = await postExerciceRetex(simulationId as string, 'erreur titre', '')
+          }
+          
+          // console.log("Id scénario créé", scenarioDocId); 
 
-        //créer le lien entre le scénario et le plastron
-        await connectExercicePlastron(scenarioDocId, createdPlastronId); 
+          //créer le lien entre le scénario et le plastron
+          await connectExercicePlastron(scenarioDocId, createdPlastronId); 
+
+        }
 
       } catch (err) {
         if(err == 'exists'){ // Le scénario est déjà dans le Retex
@@ -256,7 +266,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
       ]);
 
       // console.log('action', actionsPlastron)
-      // console.log('modele', model)
+      console.log('modele', model)
       //TO DO voir pourquoi alors que dans le modèle on a l'action vers la tendance dans le symptome ça ne fonctionne pas 
       
       setActions(actions);
@@ -286,7 +296,10 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
         };
       }); 
       //stocker les actions modélisées dans le plastron 
-      await putActionPlastron(createdPlastronId, JSON.stringify(resultat));
+      if (behaviour != "loadBack") {
+        await putActionPlastron(createdPlastronId, JSON.stringify(resultat));
+      }
+      
 
       setModelPlastron(model);
    
@@ -317,8 +330,9 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     plastronDataPre = selectedPlastronData, 
     plastronId = createdPlastronId
   ) => {
+    console.log("start simulation")
     if(!plastronDataPre){
-      throw "Emply plastron data";
+      throw "Empty plastron data";
     }
     
     setIsPending(true);
@@ -350,7 +364,7 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
     } catch (err) {
       if (err !== 'idle') {
         console.error("Could not load: " + err);
-        if (typeof err === "string") props.displayNotif(err, "error");
+        if (typeof err == "string") props.displayNotif(err, "error");
       }
     } finally {
       setIsPending(false);
@@ -405,20 +419,33 @@ export default function PreSimulationView(props:PreSimulationViewProps) {
               >
                 <Text style={styles.askExistsButtonText}>Non</Text>
               </AnimatedButton>
-              <AnimatedButton
-              style={[styles.buttonAskExists,styles.buttonLoadPrevious]}
-              onPress={() => {
-                setIsPending(true);
-                getStorage('lastPlastronId')
-                .then(getPlatronData)
-                .then(plastronData => setUpPlastron('loadBack', plastronData))
-                .finally(() => {
-                  setIsPending(false);
-                });
-              }}
-              >
-                <Text style={styles.askExistsButtonText}>Oui</Text>
-              </AnimatedButton>
+                <AnimatedButton
+                  style={[styles.buttonAskExists, styles.buttonLoadPrevious]}
+                  onPress={() => {
+                    setIsPending(true);
+
+                    getStorage('lastPlastronId')
+                      .then(getPlatronData)
+                      .then(plastronData => {
+                        return setUpPlastron('loadBack', plastronData).then(() => plastronData);
+                      })
+                      .then(plastronData => startSimulation('loadBack', plastronData))
+                      .then(() => {
+                        props.forwards();
+                        setSetUp(true);
+                      })
+                      .catch(err => {
+                        console.error("Erreur pendant le chargement du plastron :", err);
+                        props.displayNotif("Erreur de chargement", "error");
+                      })
+                      .finally(() => {
+                        setIsPending(false);
+                      });
+                  }}
+                >
+                  <Text style={styles.askExistsButtonText}>Oui</Text>
+                </AnimatedButton>
+
             </View>
           </AnimatedModal.Body>
         </AnimatedModal.Content>

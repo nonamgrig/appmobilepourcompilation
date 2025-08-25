@@ -22,7 +22,8 @@ export const useNFC = () => {
         const text = Ndef.text.decodePayload(tag.ndefMessage[0].payload as unknown as Uint8Array<ArrayBufferLike>);
         console.log("text", text); 
         // Sometime strange characters are appened at the end and should be removed
-        setMessage(text.substring(text.indexOf('{'),text.indexOf('}')+1)); // Triggers the render and functions
+        setMessage(text.trim());
+        // setMessage(text.substring(text.indexOf('{'),text.indexOf('}')+1)); // Triggers the render and functions
         setMessage(""); // Resets
         
       } else {

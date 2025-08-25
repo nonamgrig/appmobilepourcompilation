@@ -297,16 +297,17 @@ export default function IntervenantView(props:IntervenantViewProps) {
     }
 
     const addIntervenant = (code:string) => {
-      const data = JSON.parse(code);
+      // const data = JSON.parse(code);
+      const id = code //on ne met dans le tag NFC que l'id du bracelet
       // Si l'intervenant n'est pas déjà identifié
-      if(!intervenantsList.some((med:IntervenantItem) => med.intervenantID == data.id)){
+      if(!intervenantsList.some((med:IntervenantItem) => med.intervenantID == id)){
         let intervenantItem:IntervenantItem = {
-          intervenantID: data.id,
-          nom: data.nom,
+          intervenantID: id,
+          // nom: data.nom,
           class: "secouriste",
         };
         // The first number of the ID means the type of medclass
-        switch (data.id.charAt(0)) {
+        switch (id.charAt(0)) {
           case "0": 
             intervenantItem.class="obs"; 
             break 
@@ -554,7 +555,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
                     style={styles.medListItem} 
                     key={interv.intervenantID}>
                       <Text style={styles.medListText}>
-                        <Text style={[baseStyles.appBoldFont, baseStyles.maincolor]}>{interv.nom} ({interv.intervenantID}) </Text>
+                        <Text style={[baseStyles.appBoldFont, baseStyles.maincolor]}>{interv.intervenantID} </Text>
                           ({interv.class})
                       </Text>
                       <Pressable
@@ -637,7 +638,7 @@ export default function IntervenantView(props:IntervenantViewProps) {
                 style={styles.devButton}
                 onPress={() => {
                   if (manualId.trim() !== '') {
-                    addIntervenant(JSON.stringify({ id: manualId, nom: '' }));
+                    addIntervenant(manualId);
                   }
                 }}
               >

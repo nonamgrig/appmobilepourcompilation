@@ -795,7 +795,7 @@ const useStrapi = () => {
       if(error.response.data.error.message == "This attribute must be unique")
         throw 'exists';
       else {
-        console.error("erreur dans connect", error.response.data);
+        console.error("erreur dans connect Exercice Plastron", error.response.data);
         throw error
       };
     }
@@ -816,7 +816,7 @@ const useStrapi = () => {
       if(error.response.data.error.message == "This attribute must be unique")
         throw 'exists';
       else {
-        console.error("erreur dans connect", error.response.data);
+        console.error("erreur dans connect ActionPlastron", error.response.data);
         throw error
       };
     }
@@ -837,7 +837,7 @@ const useStrapi = () => {
       if(error.response.data.error.message == "This attribute must be unique")
         throw 'exists';
       else {
-        console.error("erreur dans connect", error.response.data);
+        console.error("erreur dans connect StatusPlastron", error.response.data);
         throw error
       };
     }

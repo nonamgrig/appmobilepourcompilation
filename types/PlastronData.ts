@@ -9,9 +9,11 @@ export type PlastronPhysVar = {
 };
 
 export type PlastronData = {
+    [x: string]: any;
     documentId: string, // Hidden UID
     index: number, // Displayed UID
     scenario: {
+        [x: string]: string | undefined;
         titre: string, 
         description : string,
     }

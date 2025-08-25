@@ -2,7 +2,7 @@ import React from 'react';
 
 export type IntervenantItem = {
   intervenantID: string,
-  nom: string,
+  // nom: string,
   class: "obs"|"med"|"paramed"|"secouriste",
 };
 
